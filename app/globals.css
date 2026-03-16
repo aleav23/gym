@@ -1,0 +1,80 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #f2f2f7;
+  --bg-elevated: #ffffff;
+  --bg-grouped: #f2f2f7;
+  --label: #000000;
+  --label-secondary: #3c3c43b3;
+  --label-tertiary: #3c3c4399;
+  --separator: #3c3c4349;
+  --fill: #78788052;
+  --blue: #007aff;
+  --green: #34c759;
+  --orange: #ff9500;
+  --red: #ff3b30;
+  --radius: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--label);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text",
+    "Helvetica Neue", sans-serif;
+  letter-spacing: -0.01em;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 0px;
+}
+
+/* SF Pro numbers feel */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Smooth transitions for everything */
+* {
+  transition-property: background-color, border-color, color, opacity;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+/* Frosted glass */
+.glass {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+/* Press effect */
+.pressable {
+  cursor: pointer;
+  user-select: none;
+}
+.pressable:active {
+  transform: scale(0.97);
+  transition-duration: 50ms;
+}
+
+/* Card */
+.card {
+  background: var(--bg-elevated);
+  border-radius: var(--radius);
+}
+
+/* Input reset */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+}
