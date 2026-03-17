@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, PartyPopper, RotateCcw } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { WorkoutDay, ExerciseLog, SetLog, WorkoutSession } from "@/lib/types";
 import ExerciseCard from "./ExerciseCard";
 
@@ -12,59 +12,138 @@ interface Props {
   onSessionComplete: (session: WorkoutSession) => void;
 }
 
+interface ActiveWorkoutState {
+  dayKey: string;
+  // exerciseName -> SetLog[]
+  setsMap: Record<string, SetLog[]>;
+  completedExercises: string[];
+  expandedExercise: string | null;
+}
+
+const STORAGE_KEY = "gymflow:active-workout";
+
+function loadActiveWorkout(dayKey: string): ActiveWorkoutState | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed: ActiveWorkoutState = JSON.parse(raw);
+    if (parsed.dayKey !== dayKey) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function saveActiveWorkout(state: ActiveWorkoutState) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch {}
+}
+
+function clearActiveWorkout() {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {}
+}
+
 export default function WorkoutView({ day, onBack, onSessionComplete }: Props) {
-  const [completedExercises, setCompletedExercises] = useState<Set<string>>(new Set());
-  const [exerciseLogs, setExerciseLogs] = useState<Record<string, ExerciseLog>>({});
+  const dayKey = day.day;
+
+  const initState = (): ActiveWorkoutState => {
+    if (typeof window !== "undefined") {
+      const saved = loadActiveWorkout(dayKey);
+      if (saved) return saved;
+    }
+    return {
+      dayKey,
+      setsMap: Object.fromEntries(
+        day.exercises.map((e) => [
+          e.name,
+          Array.from({ length: e.sets }, () => ({ weight: null, reps: null, done: false })),
+        ])
+      ),
+      completedExercises: [],
+      expandedExercise: null,
+    };
+  };
+
+  const [state, setState] = useState<ActiveWorkoutState>(initState);
   const [showComplete, setShowComplete] = useState(false);
-  const [remaining, setRemaining] = useState(day.exercises.map((e) => e.name));
+
+  // Hydrate from localStorage on mount (SSR safe)
+  useEffect(() => {
+    const saved = loadActiveWorkout(dayKey);
+    if (saved) setState(saved);
+  }, [dayKey]);
+
+  // Persist on every change
+  useEffect(() => {
+    saveActiveWorkout(state);
+  }, [state]);
 
   const totalExercises = day.exercises.length;
-  const progress = completedExercises.size / totalExercises;
+  const completedCount = state.completedExercises.length;
+  const progress = completedCount / totalExercises;
+
+  // Exercises still visible (not completed)
+  const remaining = day.exercises.filter(
+    (e) => !state.completedExercises.includes(e.name)
+  );
+
+  const handleSetsChange = (exerciseName: string, sets: SetLog[]) => {
+    setState((prev) => ({
+      ...prev,
+      setsMap: { ...prev.setsMap, [exerciseName]: sets },
+    }));
+  };
 
   const handleExerciseComplete = (exerciseName: string, sets: SetLog[]) => {
-    const log: ExerciseLog = {
-      exerciseName,
-      sets,
-      completedAt: new Date().toISOString(),
-    };
-
-    setExerciseLogs((prev) => ({ ...prev, [exerciseName]: log }));
-    setCompletedExercises((prev) => {
-      const next = new Set(prev);
-      next.add(exerciseName);
-
-      if (next.size === totalExercises) {
-        setTimeout(() => setShowComplete(true), 400);
+    setState((prev) => {
+      const next: ActiveWorkoutState = {
+        ...prev,
+        setsMap: { ...prev.setsMap, [exerciseName]: sets },
+        completedExercises: [...prev.completedExercises, exerciseName],
+        expandedExercise: null,
+      };
+      // Check if all done
+      if (next.completedExercises.length === totalExercises) {
+        setTimeout(() => setShowComplete(true), 600);
       }
-
       return next;
     });
+  };
 
-    // Remove from remaining after animation
-    setTimeout(() => {
-      setRemaining((prev) => prev.filter((n) => n !== exerciseName));
-    }, 600);
+  const handleToggleExpand = (exerciseName: string) => {
+    setState((prev) => ({
+      ...prev,
+      expandedExercise: prev.expandedExercise === exerciseName ? null : exerciseName,
+    }));
   };
 
   const handleFinishWorkout = () => {
+    const exerciseLogs: ExerciseLog[] = day.exercises
+      .filter((e) => state.completedExercises.includes(e.name))
+      .map((e) => ({
+        exerciseName: e.name,
+        sets: state.setsMap[e.name] ?? [],
+        completedAt: new Date().toISOString(),
+      }));
+
     const session: WorkoutSession = {
       id: Date.now().toString(),
       day: day.day,
       date: new Date().toISOString(),
-      exercises: Object.values(exerciseLogs),
+      exercises: exerciseLogs,
       completedAt: new Date().toISOString(),
     };
+
+    clearActiveWorkout();
     onSessionComplete(session);
-    // Reset state to allow redoing
-    setCompletedExercises(new Set());
-    setExerciseLogs({});
-    setShowComplete(false);
-    setRemaining(day.exercises.map((e) => e.name));
   };
 
   return (
     <div className="min-h-screen pb-10">
-      {/* Header */}
+      {/* Sticky header */}
       <div
         className="glass sticky top-0 z-20"
         style={{ borderBottom: "1px solid var(--separator)" }}
@@ -82,32 +161,18 @@ export default function WorkoutView({ day, onBack, onSessionComplete }: Props) {
           </div>
           <div className="flex items-end justify-between">
             <div>
-              <p
-                className="text-sm font-medium"
-                style={{ color: "var(--label-secondary)" }}
-              >
+              <p className="text-sm font-medium" style={{ color: "var(--label-secondary)" }}>
                 {day.day}
               </p>
-              <h2
-                className="text-2xl font-bold"
-                style={{ letterSpacing: "-0.02em" }}
-              >
+              <h2 className="text-2xl font-bold" style={{ letterSpacing: "-0.02em" }}>
                 {day.label || day.day}
               </h2>
             </div>
-            <span
-              className="text-sm font-semibold tabular-nums"
-              style={{ color: "var(--label-secondary)" }}
-            >
-              {completedExercises.size}/{totalExercises}
+            <span className="text-sm font-semibold tabular-nums" style={{ color: "var(--label-secondary)" }}>
+              {completedCount}/{totalExercises}
             </span>
           </div>
-
-          {/* Progress bar */}
-          <div
-            className="mt-3 h-1.5 rounded-full overflow-hidden"
-            style={{ background: "var(--fill)" }}
-          >
+          <div className="mt-3 h-1.5 rounded-full overflow-hidden" style={{ background: "var(--fill)" }}>
             <motion.div
               className="h-full rounded-full"
               style={{ background: "var(--blue)" }}
@@ -120,43 +185,36 @@ export default function WorkoutView({ day, onBack, onSessionComplete }: Props) {
 
       {/* Exercise list */}
       <div className="px-4 pt-4 flex flex-col gap-3">
-        {day.exercises.map((exercise) => {
-          const isCompleted = completedExercises.has(exercise.name);
-          const isVisible = remaining.includes(exercise.name);
-
-          return (
-            <AnimatePresence key={exercise.name}>
-              {isVisible && (
-                <motion.div
-                  initial={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                  transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
-                >
-                  <ExerciseCard
-                    exercise={exercise}
-                    onComplete={(logs) =>
-                      handleExerciseComplete(exercise.name, logs)
-                    }
-                  />
-                </motion.div>
-              )}
-            </AnimatePresence>
-          );
-        })}
-
-        {/* Empty state when all done */}
         <AnimatePresence>
-          {remaining.length === 0 && !showComplete && (
+          {remaining.map((exercise) => (
             <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="flex flex-col items-center py-12 gap-3"
+              key={exercise.name}
+              layout
+              exit={{ opacity: 0, scale: 0.95, y: -10 }}
+              transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
             >
-              <div className="text-5xl">🎉</div>
-              <p className="text-xl font-bold">¡Todo listo!</p>
+              <ExerciseCard
+                exercise={exercise}
+                initialSets={state.setsMap[exercise.name]}
+                expanded={state.expandedExercise === exercise.name}
+                onToggleExpand={() => handleToggleExpand(exercise.name)}
+                onSetsChange={(sets) => handleSetsChange(exercise.name, sets)}
+                onComplete={(logs) => handleExerciseComplete(exercise.name, logs)}
+              />
             </motion.div>
-          )}
+          ))}
         </AnimatePresence>
+
+        {remaining.length === 0 && !showComplete && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="flex flex-col items-center py-12 gap-3"
+          >
+            <div className="text-5xl">🎉</div>
+            <p className="text-xl font-bold">¡Todo listo!</p>
+          </motion.div>
+        )}
       </div>
 
       {/* Completion modal */}
@@ -183,17 +241,12 @@ export default function WorkoutView({ day, onBack, onSessionComplete }: Props) {
             >
               <div className="flex flex-col items-center text-center gap-4">
                 <div className="text-6xl">💪</div>
-                <h2
-                  className="text-2xl font-bold"
-                  style={{ letterSpacing: "-0.02em" }}
-                >
+                <h2 className="text-2xl font-bold" style={{ letterSpacing: "-0.02em" }}>
                   ¡Rutina completada!
                 </h2>
                 <p style={{ color: "var(--label-secondary)" }}>
-                  Terminaste {day.label || day.day} con{" "}
-                  {totalExercises} ejercicios.
+                  Terminaste {day.label || day.day} con {totalExercises} ejercicios.
                 </p>
-
                 <div className="w-full flex flex-col gap-3 mt-2">
                   <button
                     onClick={handleFinishWorkout}
@@ -205,10 +258,7 @@ export default function WorkoutView({ day, onBack, onSessionComplete }: Props) {
                   <button
                     onClick={() => setShowComplete(false)}
                     className="pressable w-full py-4 rounded-2xl font-semibold text-base"
-                    style={{
-                      background: "var(--fill)",
-                      color: "var(--label)",
-                    }}
+                    style={{ background: "var(--fill)", color: "var(--label)" }}
                   >
                     Ver resumen
                   </button>
