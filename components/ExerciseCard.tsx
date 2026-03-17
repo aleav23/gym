@@ -1,6 +1,5 @@
 "use client";
 
-import { useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, ChevronDown, ChevronUp, Clock } from "lucide-react";
 import { Exercise, SetLog } from "@/lib/types";
@@ -30,7 +29,6 @@ export default function ExerciseCard({
 
   const completedCount = sets.filter((s) => s.done).length;
   const allDone = completedCount === sets.length;
-  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const updateSet = (index: number, field: "weight" | "reps", value: string) => {
     const next = sets.map((s, i) =>
@@ -44,94 +42,93 @@ export default function ExerciseCard({
       i === index ? { ...s, done: !s.done } : s
     );
     onSetsChange(next);
-    const allCompleted = next.every((s) => s.done);
-    if (allCompleted) {
+    if (next.every((s) => s.done)) {
       setTimeout(() => onComplete(next), 300);
     }
   };
 
-  const handleInputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
-    setTimeout(() => {
-      e.target.scrollIntoView({ behavior: "smooth", block: "center" });
-    }, 350);
-  };
-
   return (
     <div style={{ background: "var(--bg-elevated)", borderRadius: "var(--radius)" }}>
+      {/* Header tap area */}
       <button className="pressable w-full text-left" onClick={onToggleExpand}>
-        <div className="flex items-center gap-3 p-4">
-          <div className="relative flex-shrink-0">
-            <svg width="40" height="40" viewBox="0 0 40 40">
-              <circle cx="20" cy="20" r="16" fill="none" stroke="var(--fill)" strokeWidth="3" />
-              <circle
-                cx="20" cy="20" r="16" fill="none"
-                stroke={allDone ? "var(--green)" : "var(--blue)"}
-                strokeWidth="3" strokeLinecap="round"
-                strokeDasharray={`${2 * Math.PI * 16}`}
-                strokeDashoffset={`${2 * Math.PI * 16 * (1 - completedCount / sets.length)}`}
-                transform="rotate(-90 20 20)"
-                style={{ transition: "stroke-dashoffset 0.4s ease" }}
-              />
-            </svg>
-            <span
-              className="absolute inset-0 flex items-center justify-center text-xs font-bold tabular-nums"
-              style={{ color: allDone ? "var(--green)" : "var(--blue)" }}
-            >
-              {completedCount}/{sets.length}
-            </span>
+        <div className="flex items-center gap-3 px-4 py-3">
+          {/* Compact progress pill */}
+          <div
+            className="flex-shrink-0 tabular-nums text-xs font-bold px-2 py-1 rounded-lg"
+            style={{
+              background: allDone ? "rgba(52,199,89,0.12)" : "rgba(0,122,255,0.1)",
+              color: allDone ? "var(--green)" : "var(--blue)",
+              minWidth: 36,
+              textAlign: "center",
+            }}
+          >
+            {completedCount}/{sets.length}
           </div>
 
           <div className="flex-1 min-w-0">
             <p
-              className="font-semibold text-base truncate"
+              className="font-semibold text-[15px] truncate"
               style={{
                 color: "var(--label)",
                 textDecoration: allDone ? "line-through" : "none",
-                opacity: allDone ? 0.5 : 1,
+                opacity: allDone ? 0.45 : 1,
               }}
             >
               {exercise.name}
             </p>
-            <div className="flex items-center gap-3 mt-0.5">
-              <span className="text-sm" style={{ color: "var(--label-secondary)" }}>
-                {exercise.sets} series × {exercise.reps} reps
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className="text-xs" style={{ color: "var(--label-secondary)" }}>
+                {exercise.sets}×{exercise.reps}
               </span>
               {exercise.rest && (
-                <span className="flex items-center gap-1 text-xs" style={{ color: "var(--label-tertiary)" }}>
-                  <Clock size={11} />
+                <span className="flex items-center gap-0.5 text-xs" style={{ color: "var(--label-tertiary)" }}>
+                  <Clock size={10} />
                   {exercise.rest}
                 </span>
               )}
             </div>
           </div>
 
-          <div style={{ color: "var(--label-tertiary)" }}>
-            {expanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+          <div style={{ color: "var(--label-tertiary)", flexShrink: 0 }}>
+            {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
           </div>
         </div>
       </button>
 
+      {/* Expanded sets — compact grid */}
       <AnimatePresence>
         {expanded && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+            transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
             style={{ overflow: "hidden" }}
           >
-            <div className="px-4 pb-4" style={{ borderTop: "1px solid var(--separator)" }}>
-              <div className="flex items-center gap-3 py-2 mb-1">
-                <div className="w-8" />
-                <div className="flex-1 text-xs font-semibold uppercase tracking-wider text-center" style={{ color: "var(--label-secondary)" }}>Kg</div>
-                <div className="flex-1 text-xs font-semibold uppercase tracking-wider text-center" style={{ color: "var(--label-secondary)" }}>Reps</div>
-                <div className="w-10" />
+            <div
+              className="px-3 pb-3"
+              style={{ borderTop: "1px solid var(--separator)" }}
+            >
+              {/* Column headers */}
+              <div
+                className="grid gap-1.5 pt-2 pb-1"
+                style={{ gridTemplateColumns: "28px 1fr 1fr 36px" }}
+              >
+                <div />
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-center" style={{ color: "var(--label-tertiary)" }}>KG</div>
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-center" style={{ color: "var(--label-tertiary)" }}>REPS</div>
+                <div />
               </div>
 
               {sets.map((set, i) => (
-                <div key={i} className="flex items-center gap-3 mb-2">
+                <div
+                  key={i}
+                  className="grid gap-1.5 mb-1.5 items-center"
+                  style={{ gridTemplateColumns: "28px 1fr 1fr 36px" }}
+                >
+                  {/* Set badge */}
                   <div
-                    className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-semibold"
+                    className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
                     style={{
                       background: set.done ? "var(--green)" : "rgba(0,122,255,0.1)",
                       color: set.done ? "white" : "var(--blue)",
@@ -140,54 +137,71 @@ export default function ExerciseCard({
                     {i + 1}
                   </div>
 
+                  {/* KG input */}
                   <input
-                    ref={(el) => { inputRefs.current[i * 2] = el; }}
                     type="number"
                     inputMode="decimal"
                     placeholder="—"
                     value={set.weight ?? ""}
                     onChange={(e) => updateSet(i, "weight", e.target.value)}
-                    onFocus={handleInputFocus}
                     disabled={set.done}
-                    className="flex-1 text-center font-semibold py-2 rounded-xl outline-none"
                     style={{
-                      background: "var(--fill)",
+                      background: set.done ? "transparent" : "var(--fill)",
                       color: "var(--label)",
-                      opacity: set.done ? 0.5 : 1,
-                      fontSize: "16px",
+                      opacity: set.done ? 0.35 : 1,
+                      fontSize: "16px",     // critical: prevents iOS auto-zoom
+                      fontWeight: 600,
+                      textAlign: "center",
+                      borderRadius: 10,
+                      border: "none",
+                      outline: "none",
+                      padding: "6px 4px",
+                      width: "100%",
+                      WebkitAppearance: "none",
                     }}
                   />
 
+                  {/* Reps input */}
                   <input
-                    ref={(el) => { inputRefs.current[i * 2 + 1] = el; }}
                     type="number"
                     inputMode="numeric"
                     placeholder="—"
                     value={set.reps ?? ""}
                     onChange={(e) => updateSet(i, "reps", e.target.value)}
-                    onFocus={handleInputFocus}
                     disabled={set.done}
-                    className="flex-1 text-center font-semibold py-2 rounded-xl outline-none"
                     style={{
-                      background: "var(--fill)",
+                      background: set.done ? "transparent" : "var(--fill)",
                       color: "var(--label)",
-                      opacity: set.done ? 0.5 : 1,
-                      fontSize: "16px",
+                      opacity: set.done ? 0.35 : 1,
+                      fontSize: "16px",     // critical: prevents iOS auto-zoom
+                      fontWeight: 600,
+                      textAlign: "center",
+                      borderRadius: 10,
+                      border: "none",
+                      outline: "none",
+                      padding: "6px 4px",
+                      width: "100%",
+                      WebkitAppearance: "none",
                     }}
                   />
 
+                  {/* Done checkmark */}
                   <button
                     onClick={() => toggleSetDone(i)}
-                    className="pressable w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                    style={{ background: set.done ? "var(--green)" : "rgba(52,199,89,0.12)" }}
+                    className="pressable flex items-center justify-center rounded-xl"
+                    style={{
+                      background: set.done ? "var(--green)" : "rgba(52,199,89,0.12)",
+                      width: 36,
+                      height: 32,
+                    }}
                   >
-                    <Check size={18} style={{ color: set.done ? "white" : "var(--green)", strokeWidth: 2.5 }} />
+                    <Check size={15} style={{ color: set.done ? "white" : "var(--green)", strokeWidth: 2.5 }} />
                   </button>
                 </div>
               ))}
 
               {exercise.notes && (
-                <p className="text-xs mt-2 italic" style={{ color: "var(--label-tertiary)" }}>
+                <p className="text-[11px] mt-1.5 italic" style={{ color: "var(--label-tertiary)" }}>
                   💬 {exercise.notes}
                 </p>
               )}
