@@ -23,6 +23,11 @@
 * {
   -webkit-tap-highlight-color: transparent;
   -webkit-font-smoothing: antialiased;
+  box-sizing: border-box;
+}
+
+html {
+  height: 100%;
 }
 
 body {
@@ -31,27 +36,18 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text",
     "Helvetica Neue", sans-serif;
   letter-spacing: -0.01em;
-  /* Prevent layout shift when mobile keyboard appears */
   min-height: 100dvh;
+  /* Prevent bounce scroll on iOS that messes up layout when keyboard opens */
+  overscroll-behavior-y: none;
 }
 
-/* Fix iOS scroll when keyboard is open */
-input:focus {
-  position: relative;
-  z-index: 1;
-}
+/* Scrollbar hidden */
+::-webkit-scrollbar { width: 0px; }
 
-/* Scrollbar */
-::-webkit-scrollbar {
-  width: 0px;
-}
+/* SF Pro numbers */
+.tabular-nums { font-variant-numeric: tabular-nums; }
 
-/* SF Pro numbers feel */
-.tabular-nums {
-  font-variant-numeric: tabular-nums;
-}
-
-/* Smooth transitions for everything */
+/* Transitions — only non-layout props to avoid scroll jank */
 * {
   transition-property: background-color, border-color, color, opacity;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
@@ -81,8 +77,10 @@ input:focus {
   border-radius: var(--radius);
 }
 
-/* Input reset */
+/* Number inputs — hide spinners everywhere */
+input[type=number] { -moz-appearance: textfield; }
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;
+  margin: 0;
 }
